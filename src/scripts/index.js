@@ -22,6 +22,25 @@ const $ = require('jquery');
 
 //instantiate the map
 const ourMap = map('map');
+var userLocation = null;
+var radius = 1500000;
+var locationCount = 1;
+
+//map view centered on reeds lake
+ourMap.setView([42.9563, -85.609], 16);
+
+//turn location on
+ourMap.locate({watch: true});
+
+//force map to load correctly
+setTimeout(function(){ ourMap.invalidateSize();}, 100);
+
+//add basemap
+basemapLayer('Gray').addTo(ourMap);
+
+//location listeners
+ourMap.on('locationerror', onLocationError);
+ourMap.on('locationfound', onLocationFound);
 
 
 ///////////////////
@@ -29,41 +48,44 @@ const ourMap = map('map');
 //// THE DATA /////
 ///////////////////
 
-const layers = ['park', 'poi', 'trails']
+const layers = ['park','trails','poi']
 var allLayers = layerGroup().addTo(ourMap);
+var theControl;
 var overlays = {};
-var test = [];
+var ids = {};
 var counter = 1;
 var last = layers.length;
 
-$.each(layers, function (i, item) {
+function init(){
 
-	let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
-	
-	let data = getData(URL);
+  $.each(layers, function (i, item) {
+  
+  	let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
+  	
+  	let data = getData(URL);
+  
+  	data.then((result)=>{
 
-	data.then((result)=>{
+  
+  		var geoJsonLayer;
 
-    ///////////////////
-    //// ADD DATA /////
-    /// TO THE MAP ////
-    ///////////////////
-
-		let geoJsonLayer = geoJson(result);
-    geoJsonLayer.addTo(allLayers);
-    test.push(geoJsonLayer)
-
-    overlays[item] = geoJsonLayer;
-
-    if(counter == last){
-      control.layers({}, overlays).addTo(ourMap);
-    }
-    counter +=1;
-	});
-});
-
-
-
+      if (userLocation && result.features[0].geometry.type == 'Point'){
+        geoJsonLayer = geoJson(result, {filter: distanceCheck}).addTo(allLayers);
+      }
+      else{
+        geoJsonLayer = geoJson(result);
+      }
+      geoJsonLayer.addTo(allLayers);
+      overlays[item] = geoJsonLayer;
+      ids[item] = geoJsonLayer._leaflet_id;
+  
+      if(counter == last){
+        theControl = control.layers({}, overlays).addTo(ourMap);
+      }
+      counter +=1;
+  	});
+  });
+}
 
 async function getData(url) {
   let result;
@@ -79,32 +101,40 @@ async function getData(url) {
   }
 }
 
+function update(){
 
-///////////////////
-//// POSITION /////
-//// THE MAP //////
-///////////////////
+  ///this is untested code supposed to run when location moves. probably will bork something up
 
-//map view centered on reeds lake
-ourMap.setView([42.9563, -85.609], 16);
+  $.each(layers, function (i, item) {
 
-//map view centered on user
-// ourMap.locate({setView: true, maxZoom: 16});
+    if(item == 'poi'){
 
-//force map to load correctly
-setTimeout(function(){ ourMap.invalidateSize();}, 100);
+      ourMap.removeLayer(allLayers.getLayer(ids[item]));
+  
+      let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
+      
+      let data = getData(URL);
+  
+      data.then((result)=>{
+        let geoJsonLayer = geoJson(result);
+        ids[item] = geoJsonLayer._leaflet_id;
+  
+        if (userLocation && result.features[0].geometry.type == 'Point'){
+          geoJson(result, {filter: distanceCheck}).addTo(allLayers);
+        }
 
-//add basemap
-basemapLayer('Gray').addTo(ourMap);
+      });
+    }
+  });
+}
 
-//add marker when location is found
+
 function onLocationFound(e) {
-  var radius = e.accuracy / 2;
-
-  marker(e.latlng).addTo(ourMap)
-    .bindPopup("You are within " + radius + " meters from this point").openPopup();
-
-    circle(e.latlng, radius).addTo(ourMap);
+  userLocation = e;
+  marker(e.latlng).addTo(ourMap);
+  if (locationCount>1){
+    update();
+  }
 }
 
 //provide error when location is not found
@@ -112,7 +142,38 @@ function onLocationError(e) {
   alert(e.message);
 }
 
-//location listeners
-ourMap.on('locationerror', onLocationError);
-ourMap.on('locationfound', onLocationFound);
+function distance(lat1, lon1, lat2, lon2, unit) {
 
+  //something wonky happening between the map distance and the distance calculated here... im not going to worry about it
+  var radlat1 = Math.PI * lat1/180
+  var radlat2 = Math.PI * lat2/180
+  var theta = lon1-lon2
+  var radtheta = Math.PI * theta/180
+  var dist = Math.sin(radlat1) * Math.sin(radlat2) + Math.cos(radlat1) * Math.cos(radlat2) * Math.cos(radtheta);
+  if (dist > 1) {
+    dist = 1;
+  }
+  dist = Math.acos(dist)
+  dist = dist * 180/Math.PI
+  dist = dist * 60 * 1.1515
+  if (unit=="K") { dist = dist * 1.609344 }
+  if (unit=="N") { dist = dist * 0.8684 }
+  return dist
+}
+
+function distanceCheck(feature){
+
+  let distanceCheck = distance(userLocation.latitude, userLocation.longitude, feature.geometry.coordinates[0], feature.geometry.coordinates[1], 'K')*1000;
+
+  console.log(distanceCheck, radius);
+  if(distanceCheck<= radius){
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}
+
+
+init();
