@@ -70,7 +70,6 @@ function init(){
   		var geoJsonLayer;
 
       if (userLocation && result.features[0].geometry.type == 'Point'){
-        console.log(result);
         geoJsonLayer = geoJson(result, {filter: distanceCheck}).addTo(allLayers);
       }
       else{
@@ -166,7 +165,6 @@ function distanceCheck(feature){
 
   let distanceCheck = distance(userLocation.latitude, userLocation.longitude, feature.geometry.coordinates[0], feature.geometry.coordinates[1], 'K')*1000;
 
-  console.log(distanceCheck, radius);
   if(distanceCheck<= radius){
     return true;
   }
@@ -203,7 +201,6 @@ function removeButton(){
 
 function getInfo(){
   ///make a form do something for user input here
-  console.log(newMark);
   var postData = 
       '<wfs:Transaction service="WFS" version="1.0.0"'
       +'  xmlns:wfs="http://www.opengis.net/wfs"'
@@ -242,7 +239,7 @@ function sendData(data){
     data: data,
     //TODO: Error handling
     success: function(xml) {  
-      console.log(xml);
+      
     }
   });
 
