@@ -23,7 +23,7 @@ const $ = require('jquery');
 //instantiate the map
 const ourMap = map('map');
 var userLocation = null;
-var radius = 15000000;
+var radius = 80000000;
 var locationCount = 1;
 
 //map view centered on reeds lake
@@ -48,7 +48,7 @@ ourMap.on('locationfound', onLocationFound);
 //// THE DATA /////
 ///////////////////
 
-const layers = ['park','trails','poi']
+const layers = ['park','trails','poi','treasure','service']
 var allLayers = layerGroup().addTo(ourMap);
 var theControl;
 var overlays = {};
@@ -56,18 +56,23 @@ var ids = {};
 var counter = 1;
 var last = layers.length;
 
-function init(){
-
+function init(param=null){
+  if(param){
+    ourMap.removeLayer(allLayers.getLayer(ids.service));
+    ourMap.removeLayer(allLayers.getLayer(ids.poi));
+    ourMap.removeLayer(allLayers.getLayer(ids.treasure));
+  }
+  
   $.each(layers, function (i, item) {
-  
-  	let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
-  	
+  	let URL = param ? `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&PROPERTYNAME=name,geom,desc&cql_filter=name='${param}'&maxFeatures=50&outputFormat=application/json`:`http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
   	let data = getData(URL);
-  
   	data.then((result)=>{
 
-  
   		var geoJsonLayer;
+
+      if(!result.features || !result.features.length){
+        return;
+      }
 
       if (userLocation && result.features[0].geometry.type == 'Point'){
         geoJsonLayer = geoJson(result, {filter: distanceCheck}).addTo(allLayers);
@@ -103,19 +108,17 @@ async function getData(url) {
 
 function update(){
 
-  ///this is untested code supposed to run when location moves. probably will bork something up
-
   $.each(layers, function (i, item) {
 
-    if(item == 'poi'){
+    if(item == 'poi' || item == 'secret' || item=='service'){
 
       ourMap.removeLayer(allLayers.getLayer(ids[item]));
   
-      let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
-      
+      let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`;
       let data = getData(URL);
-  
+
       data.then((result)=>{
+
         let geoJsonLayer = geoJson(result);
         ids[item] = geoJsonLayer._leaflet_id;
   
@@ -175,22 +178,67 @@ function distanceCheck(feature){
 }
 
 
-
-//pushign to database — steps
-
-//create a popup form (look at leaflet docs)
-//'<form role="form" id="form" onsubmit="return addMarker();">'+
-
 var newMark = null;
 
-let popupContent = '<button id="popUpButton">Add location to map</button> </br><button id="removeButton">Remove</button> ';
+var popupContent;
+
+// Get the modal
+var modal = document.getElementById('myModal');
+var modal2 = document.getElementById('modalTwo');
+
+// Get the <span> element that closes the modal
+var span = document.getElementsByClassName("close")[0];
+var span2 = document.getElementsByClassName("close")[1];
+var submitButton = document.getElementById('submitButton');
+var queryButton = document.getElementById('queryButton');
+var askButton = document.getElementById('askButton');
+var newType;
 
 ourMap.on('click touchstart', function(e){
     newMark = new marker(e.latlng).addTo(ourMap);
-    newMark.bindPopup(popupContent).openPopup();
-    var rmvButton = document.getElementById('removeButton').addEventListener("touchstart", removeButton);
-    var addButton = document.getElementById('popUpButton').addEventListener("touchstart", getInfo);
+    
+
+    modal.style.display = "block";
+    submitButton.addEventListener("click", getInfo);
+
+
 });
+
+queryButton.onclick = function() {
+    modal2.style.display = "block";
+    let query = document.getElementById("find");
+    var val;
+    query.addEventListener("change", function(){
+      val = this.value;
+    })
+    askButton.addEventListener("click", function(){init(val);});
+}
+
+
+// When the user clicks on <span> (x), close the modal
+span.onclick = function() {
+    modal.style.display = "none";
+    removeButton();
+}
+
+span2.onclick = function() {
+    modal2.style.display = "none";
+    removeButton();
+}
+
+
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+    if (event.target == modal || event.target == modal2) {
+        modal.style.display = "none";
+        modal2.style.display = "none";
+        removeButton();
+    }
+}
+
+
+
+
 
 
 function removeButton(){
@@ -200,23 +248,45 @@ function removeButton(){
 };
 
 function getInfo(){
+  modal.style.display = "none";
   ///make a form do something for user input here
+  let radios = document.getElementsByClassName('radio');
+
+  for (var i = 0, length = radios.length; i < length; i++)
+  {
+   if (radios[i].checked)
+   {
+    // do whatever you want with the checked radio
+    newType = radios[i].value;
+
+    // only one radio can be logically checked, don't check the rest
+    break;
+   }
+  }
+
+  let name = document.getElementById("name").value;
+  let desc = document.getElementById("desc").value;
+
+  popupContent = '<p>'+name+'</p> </br><p>'+desc+'</p> ';
+  
+
+  
   var postData = 
       '<wfs:Transaction service="WFS" version="1.0.0"'
       +'  xmlns:wfs="http://www.opengis.net/wfs"'
       +'  xmlns:gml="http://www.opengis.net/gml"'
       +'  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-      +'  xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.0.0/WFS-transaction.xsd http://localhost:8080/geoserver/wfs/DescribeFeatureType?typename=park:poi">'
+      +'  xsi:schemaLocation="http://www.opengis.net/wfs http://schemas.opengis.net/wfs/1.0.0/WFS-transaction.xsd http://localhost:8080/geoserver/wfs/DescribeFeatureType?typename=park:'+newType+'">'
       +'  <wfs:Insert>'
-      +'    <poi>'
+      +'    <'+newType+'>'
       +'      <geom>'
       +'         <gml:Point srsDimension="2" srsName="urn:x-ogc:def:crs:EPSG:4326">\n'
      + '          <gml:coordinates decimal="." cs="," ts=" ">' + newMark._latlng.lat + ',' + newMark._latlng.lng+ '</gml:coordinates>\n'
      + '        </gml:Point>\n'
       +'      </geom>'
-      +'      <type>testType</type>'
-      +'      <name>testName</name>'
-      +'    </poi>'
+      +'      <desc>'+desc+'</desc>'
+      +'      <name>'+name+'</name>'
+      +'    </'+newType+'>'
       +'  </wfs:Insert>'
       +'</wfs:Transaction>';
 
@@ -228,7 +298,7 @@ function getInfo(){
 
 function sendData(data){
     //let getURL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=DescribeFeatureType&outputFormat=application/json`
-
+    console.log(data);
     let postURL = `http://localhost:8080/geoserver/park/ows`
    //Get the data from the form & send it to the service.
   $.ajax({
@@ -239,6 +309,7 @@ function sendData(data){
     data: data,
     //TODO: Error handling
     success: function(xml) {  
+      newMark.bindPopup(popupContent).openPopup();
       
     }
   });

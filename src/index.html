@@ -8,5 +8,28 @@
 </head>
 <body>
   <div id='map'></div>
+  <button type="button" name="queryButton" id="queryButton">Find a landmark</button>
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Save a landmark</h2>
+      <div id="radios">
+        <input type="radio" class="radio" value="poi" name="type"> <label>Point of interest</label><br>
+        <input type="radio" class="radio" value="service" name="type"><label>Service area</label><br>
+        <input type="radio" class="radio" value="treasure" name="type"><label>Secret treasure</label><br>
+      </div>
+      <input type="text" name="name" placeholder="Name" id="name"><br>
+      <input type="text" name="description" id="desc" placeholder="Description"><br>
+      <button type="button" name="submitButton" id="submitButton">Sumbit</button>
+    </div>
+  </div>
+  <div id="modalTwo" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Find a landmark</h2>
+      <input type="text" name="find" id="find" placeholder="Name of landmark">
+      <button type="button" name="askButton" id="askButton">Sumbit</button>
+    </div>
+  </div>
 </body>
 </html>
