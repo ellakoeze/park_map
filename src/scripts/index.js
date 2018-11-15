@@ -93,12 +93,16 @@ function init(param=null){
           },
           onEachFeature: function (f, l) {
               l.bindPopup('<h4>'+f.properties.name+'</h4>');
-          },
-          pointToLayer: function(feature, latlng) {
-               return circleMarker(latlng, {
-                 radius: 10,
-               });
-        }
+              l.on("click", function(){
+
+                l.openPopup();
+              })
+          }
+        //   pointToLayer: function(feature, latlng) {
+        //        return circleMarker(latlng, {
+        //          radius: 10,
+        //        });
+        // }
         });
       }
       else{
@@ -164,7 +168,6 @@ function update(){
           geoJsonLayer = geoJson(result, {
             filter: distanceCheck, 
             style: function() {
-              console.log(item);
               if (item == "poi") {
                 return { color: "black" }; 
               } 
@@ -177,12 +180,12 @@ function update(){
             },
             onEachFeature: function (f, l) {
                 l.bindPopup('<h4>'+f.properties.name+'</h4>');
-            },
-            pointToLayer: function(feature, latlng) {
-                 return circleMarker(latlng, {
-                   radius: 10,
-                 });
-          }
+            }
+          //   pointToLayer: function(feature, latlng) {
+          //        return circleMarker(latlng, {
+          //          radius: 10,
+          //        });
+          // }
           }).addTo(allLayers);
         }
 
