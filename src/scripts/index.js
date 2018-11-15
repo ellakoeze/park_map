@@ -1,6 +1,6 @@
 import 'leaflet-css';
 import '../styles/index.scss';
-import { map, geoJson, Icon, marker, circle, layerGroup, control } from 'leaflet';
+import { map, geoJson, Icon, marker, circle, layerGroup, control, circleMarker } from 'leaflet';
 import { basemapLayer} from 'esri-leaflet';
 
 //image fixes for webpack
@@ -58,6 +58,7 @@ var last = layers.length;
 
 function init(param=null){
   if(param){
+    modal2.style.display = "none";
     ourMap.removeLayer(allLayers.getLayer(ids.service));
     ourMap.removeLayer(allLayers.getLayer(ids.poi));
     ourMap.removeLayer(allLayers.getLayer(ids.treasure));
@@ -75,10 +76,47 @@ function init(param=null){
       }
 
       if (userLocation && result.features[0].geometry.type == 'Point'){
-        geoJsonLayer = geoJson(result, {filter: distanceCheck}).addTo(allLayers);
+        
+        geoJsonLayer = geoJson(result, {
+          filter: distanceCheck, 
+          style: function() {
+            console.log(item);
+            if (item == "poi") {
+              return { color: "black" }; 
+            } 
+            else if (item == "treasure") {
+              return { color: "orange" };
+            } 
+            else {
+              return { color: "green" };
+            }
+          },
+          onEachFeature: function (f, l) {
+              l.bindPopup('<h4>'+f.properties.name+'</h4>');
+          },
+          pointToLayer: function(feature, latlng) {
+               return circleMarker(latlng, {
+                 radius: 10,
+               });
+        }
+        });
       }
       else{
         geoJsonLayer = geoJson(result);
+        let style;
+        if(item=='park'){
+          style = {
+            color: "#f0f",
+            fillOpacity:0.05
+          };
+        }
+        else{
+          style = {
+            color: "brown",
+          };
+
+        }
+        geoJsonLayer.setStyle(style);
       }
       geoJsonLayer.addTo(allLayers);
       overlays[item] = geoJsonLayer;
@@ -123,7 +161,29 @@ function update(){
         ids[item] = geoJsonLayer._leaflet_id;
   
         if (userLocation && result.features[0].geometry.type == 'Point'){
-          geoJson(result, {filter: distanceCheck}).addTo(allLayers);
+          geoJsonLayer = geoJson(result, {
+            filter: distanceCheck, 
+            style: function() {
+              console.log(item);
+              if (item == "poi") {
+                return { color: "black" }; 
+              } 
+              else if (item == "treasure") {
+                return { color: "orange" };
+              } 
+              else {
+                return { color: "green" };
+              }
+            },
+            onEachFeature: function (f, l) {
+                l.bindPopup('<h4>'+f.properties.name+'</h4>');
+            },
+            pointToLayer: function(feature, latlng) {
+                 return circleMarker(latlng, {
+                   radius: 10,
+                 });
+          }
+          }).addTo(allLayers);
         }
 
       });

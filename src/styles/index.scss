@@ -29,6 +29,15 @@ button#queryButton{
 	background-color: #ffffff;
 }
 
+button, input{
+	
+	border: 1px black solid;
+	background-color: #ffffff;
+	&:active{
+		background-color: #cdcdcd;
+	}
+}
+
 .modal {
     display: none; 
     position: fixed; 
