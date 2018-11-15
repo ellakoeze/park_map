@@ -1,6 +1,6 @@
 import 'leaflet-css';
 import '../styles/index.scss';
-import { map, geoJson, Icon, marker, circle, layerGroup, control, circleMarker } from 'leaflet';
+import { map, geoJson, Icon, marker, circle, layerGroup, control, circleMarker, DomEvent } from 'leaflet';
 import { basemapLayer} from 'esri-leaflet';
 
 //image fixes for webpack
@@ -27,7 +27,7 @@ var radius = 80000000;
 var locationCount = 1;
 
 //map view centered on reeds lake
-ourMap.setView([42.9563, -85.609], 16);
+ourMap.setView([42.9563, -85.609], 13);
 
 //turn location on
 ourMap.locate({watch: true});
@@ -56,6 +56,7 @@ var ids = {};
 var counter = 1;
 var last = layers.length;
 
+
 function init(param=null){
   if(param){
     modal2.style.display = "none";
@@ -67,6 +68,7 @@ function init(param=null){
   $.each(layers, function (i, item) {
   	let URL = param ? `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&PROPERTYNAME=name,geom,desc&cql_filter=name='${param}'&maxFeatures=50&outputFormat=application/json`:`http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`
   	let data = getData(URL);
+    var pop;
   	data.then((result)=>{
 
   		var geoJsonLayer;
@@ -79,30 +81,10 @@ function init(param=null){
         
         geoJsonLayer = geoJson(result, {
           filter: distanceCheck, 
-          style: function() {
-            console.log(item);
-            if (item == "poi") {
-              return { color: "black" }; 
-            } 
-            else if (item == "treasure") {
-              return { color: "orange" };
-            } 
-            else {
-              return { color: "green" };
-            }
-          },
           onEachFeature: function (f, l) {
               l.bindPopup('<h4>'+f.properties.name+'</h4>');
-              l.on("click", function(){
-
-                l.openPopup();
-              })
           }
-        //   pointToLayer: function(feature, latlng) {
-        //        return circleMarker(latlng, {
-        //          radius: 10,
-        //        });
-        // }
+          
         });
       }
       else{
@@ -122,6 +104,7 @@ function init(param=null){
         }
         geoJsonLayer.setStyle(style);
       }
+
       geoJsonLayer.addTo(allLayers);
       overlays[item] = geoJsonLayer;
       ids[item] = geoJsonLayer._leaflet_id;
@@ -167,25 +150,9 @@ function update(){
         if (userLocation && result.features[0].geometry.type == 'Point'){
           geoJsonLayer = geoJson(result, {
             filter: distanceCheck, 
-            style: function() {
-              if (item == "poi") {
-                return { color: "black" }; 
-              } 
-              else if (item == "treasure") {
-                return { color: "orange" };
-              } 
-              else {
-                return { color: "green" };
-              }
-            },
             onEachFeature: function (f, l) {
-                l.bindPopup('<h4>'+f.properties.name+'</h4>');
+              l.bindPopup('<h4>'+f.properties.name+'</h4>');
             }
-          //   pointToLayer: function(feature, latlng) {
-          //        return circleMarker(latlng, {
-          //          radius: 10,
-          //        });
-          // }
           }).addTo(allLayers);
         }
 
@@ -193,6 +160,7 @@ function update(){
     }
   });
 }
+
 
 
 function onLocationFound(e) {
@@ -258,14 +226,15 @@ var askButton = document.getElementById('askButton');
 var newType;
 
 ourMap.on('click touchstart', function(e){
-    newMark = new marker(e.latlng).addTo(ourMap);
-    
+    newMark = new circleMarker(e.latlng).addTo(ourMap);
+
 
     modal.style.display = "block";
     submitButton.addEventListener("click", getInfo);
 
 
 });
+
 
 queryButton.onclick = function() {
     modal2.style.display = "block";
