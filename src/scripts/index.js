@@ -49,20 +49,32 @@ ourMap.on('locationfound', onLocationFound);
 ///////////////////
 
 const layers = ['park','trails','poi','treasure','service']
-var allLayers = layerGroup().addTo(ourMap);
+var pointLayers = layerGroup().addTo(ourMap);
+var otherLayers = layerGroup().addTo(ourMap);
 var theControl;
 var overlays = {};
 var ids = {};
 var counter = 1;
 var last = layers.length;
 
+var treasureIcon = new Icon({
+    iconUrl: 'src/images/my-icon.png'
+});
+
+var serviceIcon = new Icon({
+    iconUrl: 'src/images/square-icon.png'
+});
+
+var poiIcon = new Icon({
+    iconUrl: 'src/images/circle-icon.png'
+});
 
 function init(param=null){
   if(param){
     modal2.style.display = "none";
-    ourMap.removeLayer(allLayers.getLayer(ids.service));
-    ourMap.removeLayer(allLayers.getLayer(ids.poi));
-    ourMap.removeLayer(allLayers.getLayer(ids.treasure));
+    ourMap.removeLayer(pointLayers.getLayer(ids.service));
+    ourMap.removeLayer(pointLayers.getLayer(ids.poi));
+    ourMap.removeLayer(pointLayers.getLayer(ids.treasure));
   }
   
   $.each(layers, function (i, item) {
@@ -70,22 +82,32 @@ function init(param=null){
   	let data = getData(URL);
     var pop;
   	data.then((result)=>{
-
+      console.log(result);
   		var geoJsonLayer;
 
       if(!result.features || !result.features.length){
         return;
       }
 
-      if (userLocation && result.features[0].geometry.type == 'Point'){
-        
+      if (result.features[0].geometry.type == 'Point'){
+        console.log('ini');
         geoJsonLayer = geoJson(result, {
           filter: distanceCheck, 
+          pointToLayer: function(feature, latlng) {
+              var myIcon = item == 'treasure' ? treasureIcon : item=='poi' ?  poiIcon : item=='service' ? serviceIcon : null;
+               return marker(latlng, {
+                 icon: myIcon
+               });
+          },
           onEachFeature: function (f, l) {
-              l.bindPopup('<h4>'+f.properties.name+'</h4>');
+                if (f.properties && f.properties.name) {
+                    l.bindPopup(f.properties.name);
+                }
+                
           }
           
         });
+        geoJsonLayer.addTo(pointLayers);
       }
       else{
         geoJsonLayer = geoJson(result);
@@ -103,12 +125,11 @@ function init(param=null){
 
         }
         geoJsonLayer.setStyle(style);
+        geoJsonLayer.addTo(otherLayers);
       }
-
-      geoJsonLayer.addTo(allLayers);
+      
       overlays[item] = geoJsonLayer;
       ids[item] = geoJsonLayer._leaflet_id;
-  
       if(counter == last){
         theControl = control.layers({}, overlays).addTo(ourMap);
       }
@@ -137,7 +158,7 @@ function update(){
 
     if(item == 'poi' || item == 'secret' || item=='service'){
 
-      ourMap.removeLayer(allLayers.getLayer(ids[item]));
+      ourMap.removeLayer(pointLayers.getLayer(ids[item]));
   
       let URL = `http://localhost:8080/geoserver/park/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=park:${item}&maxFeatures=50&outputFormat=application/json`;
       let data = getData(URL);
@@ -150,10 +171,19 @@ function update(){
         if (userLocation && result.features[0].geometry.type == 'Point'){
           geoJsonLayer = geoJson(result, {
             filter: distanceCheck, 
-            onEachFeature: function (f, l) {
-              l.bindPopup('<h4>'+f.properties.name+'</h4>');
-            }
-          }).addTo(allLayers);
+            pointToLayer: function(feature, latlng) {
+                          var myIcon = item == 'treasure' ? treasureIcon : item=='poi' ?  poiIcon : item=='service' ? serviceIcon : null;
+                           return marker(latlng, {
+                             icon: myIcon
+                           });
+                      },
+                      onEachFeature: function (f, l) {
+                            if (f.properties && f.properties.name) {
+                                l.bindPopup(f.properties.name);
+                            }
+                            
+                      }
+          }).addTo(pointLayers);
         }
 
       });
@@ -178,6 +208,7 @@ function onLocationError(e) {
 
 function distance(lat1, lon1, lat2, lon2, unit) {
 
+
   //something wonky happening between the map distance and the distance calculated here... im not going to worry about it
   var radlat1 = Math.PI * lat1/180
   var radlat2 = Math.PI * lat2/180
@@ -196,6 +227,10 @@ function distance(lat1, lon1, lat2, lon2, unit) {
 }
 
 function distanceCheck(feature){
+
+  if(!userLocation){
+    return true;
+  }
 
   let distanceCheck = distance(userLocation.latitude, userLocation.longitude, feature.geometry.coordinates[0], feature.geometry.coordinates[1], 'K')*1000;
 
@@ -341,7 +376,7 @@ function sendData(data){
     data: data,
     //TODO: Error handling
     success: function(xml) {  
-      newMark.bindPopup(popupContent).openPopup();
+      init();
       
     }
   });
