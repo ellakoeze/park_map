@@ -261,7 +261,7 @@ var askButton = document.getElementById('askButton');
 var newType;
 
 ourMap.on('click touchstart', function(e){
-    newMark = new circleMarker(e.latlng).addTo(ourMap);
+    newMark = new marker(e.latlng).addTo(ourMap);
 
 
     modal.style.display = "block";
@@ -376,8 +376,8 @@ function sendData(data){
     data: data,
     //TODO: Error handling
     success: function(xml) {  
-      init();
-      
+      let icon = newType == "treasure" ? treasureIcon : newType =="poi"? poiIcon : newType=="service"? serviceIcon : null;
+      newMark.openPopup().setIcon(icon);
     }
   });
 
